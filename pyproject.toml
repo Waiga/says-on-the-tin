@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "says-on-the-tin"
+dynamic = ["version"]
+description = "Finds where a cosmetic label contradicts itself: a free-from claim on the front, and an ingredient on the back that breaks it."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+authors = [{ name = "Waiga Arya" }]
+keywords = ["cosmetics", "beauty", "labelling", "ingredients", "claims", "cli"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: Manufacturing",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Topic :: Text Processing :: Linguistic",
+]
+
+[project.urls]
+Homepage = "https://github.com/Waiga/says-on-the-tin"
+Issues = "https://github.com/Waiga/says-on-the-tin/issues"
+
+[project.scripts]
+says-on-the-tin = "says_on_the_tin.cli:main"
+
+[tool.setuptools]
+packages = ["says_on_the_tin"]
+
+# One source of truth for the version, readable without installing.
+[tool.setuptools.dynamic]
+version = { attr = "says_on_the_tin.__version__" }
