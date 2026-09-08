@@ -112,46 +112,77 @@ written by this project.
 |---|---|
 | Labels processed | 2,554 |
 | Crashes | 0 |
-| Ingredient lists parsed | 2,554 of 2,554 |
-| Individual ingredients parsed | 55,604 |
-| Claims found | 3,289 |
-| …that no ingredient list can settle | 577 (17.5% of 3,289) |
-| **Contradictions** | **51, across 46 products** (1.8% of 2,554 labels) |
-| Sent for review | 82 |
+| Individual ingredients parsed | 55,606 |
+| Claims found | 3,435 |
+| …that no ingredient list can settle | 660 (19.2% of 3,435) |
+| **Contradictions** | **54, across 49 products** (1.9% of 2,554 labels) |
+| Sent for review | 84 |
 | Known false-positive cases wrongly flagged | **0 of 14** |
 
 Those 14 are cases an earlier, independent pass over the same corpus had
 itself identified as things that must *not* be called contradictions — Epsom
 salt under sulfate-free, fatty alcohols and benzyl alcohol under
-alcohol-free. None of them is reported as a contradiction here.
+alcohol-free. None is reported as a contradiction here.
+
+**Two things that table does not say, stated so it cannot mislead.** Every
+record in the corpus was selected for having an ingredient list of at least
+50 characters, so a parse rate of 2,554 out of 2,554 is guaranteed by the
+selection and is not an achievement of the extractor. And the claims in that
+run came from the database's own label tags — `without-paraben`, `no-gluten`
+— which are tidier than anything printed on a pack.
+
+So there is a second measurement arm, over the one field in that corpus a
+brand actually wrote: the product name. It found **76 claims in 71 real
+product names** and **0 contradictions** — those brands' names and lists
+agree. That arm exists because an adversarial review pointed out that three
+real defects had survived precisely because claim detection had never met
+prose, and it earned its place immediately: it caught a bug that reported
+`Ammonium Lauryl Sulfate` as breaking a *silicone*-free claim.
 
 ### What the measurement found that the tests did not
 
-Every one of these was a real defect, found only by meeting real labels:
+Every one of these was a real defect, found only by meeting real labels or by
+an independent reviewer attacking the code:
 
-- **Claim detection was English-only.** Every single contradiction in the
-  sample was tagged in Portuguese, French, German, Italian or Dutch. An
-  English-only pass found none of them. The tool now reads `sem parabenos`,
-  `sans paraben`, `sin parabenos`, `ohne Parabene`, `senza parabeni`,
-  `Parabeenvrij` and `Parabenfrei`.
+- **Claim detection was English-only.** Every contradiction in the sample was
+  tagged in Portuguese, French, German, Italian or Dutch. An English-only
+  pass found none of them. It now reads `sem parabenos`, `sans paraben`,
+  `sin parabenos`, `ohne Parabene`, `senza parabeni`, `Parabeenvrij` and
+  `Parabenfrei`.
+- **One negation governs a whole list.** "Free from parabens, sulphates and
+  silicones" is three claims. Binding the negation to a single noun found
+  one of them, and reported a label with three contradictions as having one
+   — which reads as a clean bill of health on the other two. `FREE FROM:`
+  bullet panels found nothing at all, because of the colon.
 - **`Parfum (Fragrance)` is the most common printed form** of the fragrance
   entry, and an exact-match pattern missed all of it — 20 real
   contradictions.
-- **Glycerin and stearic acid buried everything.** Both are sourcing-ambiguous
-  under a vegan claim, and flagging them produced 524 of 538 review findings.
-  Technically defensible, practically useless. They are now listed as
-  considered-and-not-counted.
-- **Wheat derivatives under a gluten-free claim are contested, not
-  clear-cut.** Treating them as contradictions produced 19 findings against
-  hydrolysed wheat protein, which is not the same thing as gluten. They are
-  reviews now.
+- **Glycerin and stearic acid buried everything.** Both are
+  sourcing-ambiguous under a vegan claim, and flagging them produced 524 of
+  538 review findings. Technically defensible, practically useless.
+- **Wheat derivatives under a gluten-free claim are contested**, not
+  clear-cut. Hydrolysed wheat protein is not gluten. They are reviews now.
 - **Brands print the claim inside the ingredient panel** — `SANS PARABEN`
-  closing a French list. Counted as an ingredient, it inflated paraben
-  findings from 5 to 16.
-- **`Sodium Caseinate`** was missed by a word-boundary pattern on `casein`.
-- **A member pattern broad enough to include `coco`** shadowed the disputed
-  entry for Sodium Coco-Sulfate, turning a judgement call into a false
-  accusation.
+  closing a French list, or `Formulated without mineral oil, paraffin,
+  petrolatum`. Read as ingredients, those words made labels contradict
+  themselves with their own promises.
+- **"No colour transfer"** on a long-wear lipstick was read as a
+  colourant-free claim, and **"ohne rein synthetische Duftstoffe"** — no
+  *purely synthetic* fragrance — as an absolute one.
+- **Bare `milk` is not dairy.** It matched oat milk, coconut milk, and a
+  poison-control warning caught inside a panel.
+- **`Zea Mays (Corn) Silk Extract` was called silk.** The README named
+  cornsilk as a look-alike the tool handled; it did not, and the test that
+  claimed it did used a bracket that happened to block the pattern.
+- **A `\w*silicate` exclusion swallowed Trimethylsiloxysilicate**, a real
+  silicone, in 39 of the 2,554 labels.
+- **`\w*paraben` backtracked quadratically.** One label with a 40,000-
+  character unbroken run took 20.8 seconds; it now takes 0.07.
+- **A binary file after `Ingredients:`** was parsed as a list and reported as
+  no contradiction found — the most reassuring thing this tool can say, about
+  a file it never read.
+- **Exit code 0 when nothing was checked.** A CI job over a label whose list
+  did not parse went green. It now exits 2.
 
 The corpus itself is not redistributed here: Open Beauty Facts is ODbL, which
 is share-alike and incompatible with this repository's MIT licence. Only the
@@ -176,6 +207,9 @@ than none.
   talc, are lab questions, not label questions.
 - **`may contain` colourants** are shared across a shade range, so a match
   there is always a review, never a contradiction.
+- **Marketing prose inside an ingredient panel is only partly handled.**
+  Claim sentences and common safety warnings are recognised and set aside,
+  but a panel containing arbitrary prose can still produce junk tokens.
 - **Crowd-sourced label data can be wrong.** In the measurement above, a
   "contradiction" may be a mislabelled record rather than a mislabelled pack.
   The tool reports what the text it was given says.

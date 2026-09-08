@@ -50,8 +50,12 @@ class Family:
     key: str
     # How the report names the group, e.g. "parabens".
     noun: str
-    # Regexes that find the claim in marketing text.
-    claim_patterns: tuple[str, ...]
+    # Nouns a negation can attach to, e.g. "parabens?". claims.py builds
+    # the negation forms around them.
+    claim_tokens: tuple[str, ...] = ()
+    # Standalone claim regexes for families that are not "free from X"
+    # shaped, such as "vegan" and "unscented".
+    claim_patterns: tuple[str, ...] = ()
     members: tuple[Member, ...] = ()
     disputed: tuple[Member, ...] = ()
     excluded: tuple[Excluded, ...] = ()
@@ -94,49 +98,34 @@ class Family:
         return None
 
 
-# "-free" is written many ways on real packs, and on a European pack it is
-# usually not written in English at all. A tool that reads only English
-# claims is blind to most of the labels it will be pointed at: measured
-# against 2,554 real published labels, every paraben contradiction in the
-# sample was tagged in Portuguese or French, and an English-only pass found
-# none of them.
+# A family declares the NOUNS a negation can attach to. The negation forms
+# themselves live in claims.py, because one negation routinely governs a
+# whole list of them -- "free from parabens, sulphates and silicones" is one
+# word of negation and three claims, and binding a negation to a single noun
+# found only the last of them.
 #
-# These are the negation forms that appear on packs sold in the EU, the UK,
-# Latin America and India.
-_PREFIX = (
-    r"no|without|zero|free[\s\-](?:from|of)"          # English
-    r"|sans"                                           # French
-    r"|sin|libre[\s\-]de"                             # Spanish
-    r"|sem|livre[\s\-]de"                             # Portuguese
-    r"|senza"                                          # Italian
-    r"|ohne"                                           # German
-    r"|zonder"                                         # Dutch
-    r"|uten"                                           # Norwegian
-)
-# Suffixes that compound straight onto the noun: "Parabenfrei",
-# "Parabeenvrij", "parabenfri".
-_SUFFIX = r"free|frei|vrij|fri|libre"
+# On a European pack the negation is usually not in English at all: measured
+# against 2,554 real published labels, every contradiction in the sample was
+# tagged in Portuguese, French, German, Italian or Dutch, and an
+# English-only pass found none of them.
 
 
-def _free_from(*tokens: str) -> tuple[str, ...]:
-    alt = "|".join(tokens)
-    return (
-        rf"\b(?:{alt})[\s\-]?(?:{_SUFFIX})\b",
-        rf"\b(?:{_PREFIX})[\s\-]+(?:added[\s\-]+)?(?:{alt})\b",
-        rf"\b0\s*%\s*(?:{alt})\b",
-    )
+def _tokens(*tokens: str) -> tuple[str, ...]:
+    return tokens
 
 
 FAMILIES: tuple[Family, ...] = (
     Family(
         key="paraben",
         noun="parabens",
-        claim_patterns=_free_from(r"parabens?", r"parabenos?", r"parab[eè]nes?",
+        claim_tokens=_tokens(r"parabens?", r"parabenos?", r"parab[eè]nes?",
                                     r"parabene?n?", r"parabeni",
                                     # Dutch compounds it as "parabeenvrij".
                                     r"parabeen(?:en)?"),
         members=(
-            Member(r"\w*paraben\b", "a paraben"),
+            Member(r"paraben\b", "a paraben"),
+            Member(r"\b(?:methyl|ethyl|propyl|butyl)\s+\d?-?hydroxybenzoate\b",
+                   "a paraben under its chemical name"),
         ),
         note=(
             "Parabens are a clean family: an ingredient name ending in "
@@ -146,8 +135,9 @@ FAMILIES: tuple[Family, ...] = (
     Family(
         key="sulfate",
         noun="cleansing sulfates",
-        claim_patterns=_free_from(r"sulfates?", r"sulfatos?", r"sulfaten?",
-                                    r"solfati?", r"sls", r"sles"),
+        claim_tokens=_tokens(r"sulfates?", r"sulphates?", r"sulfatos?",
+                             r"sulfaten?", r"sulfaat", r"sulphaat",
+                             r"solfati?", r"sls", r"sles"),
         members=(
             # "coco" is deliberately absent here: Sodium Coco-Sulfate is
             # contested and is listed under `disputed` instead. Matching it
@@ -157,6 +147,9 @@ FAMILIES: tuple[Family, ...] = (
                    r"(?:lauryl|laureth|myreth)[\s\-]?sulfate\b",
                    "a sulfate surfactant"),
             Member(r"\bsodium\s+c\d+[\s\-]?\d*\s*(?:pareth|alkyl)?[\s\-]?sulfate\b",
+                   "a sulfate surfactant"),
+            Member(r"\b(?:sodium|ammonium)\s+(?:lauryl|dodecyl)\s+ether\s+sulfate\b"
+                   r"|\bsodium\s+dodecyl\s+sulfate\b",
                    "a sulfate surfactant"),
         ),
         disputed=(
@@ -201,14 +194,18 @@ FAMILIES: tuple[Family, ...] = (
     Family(
         key="silicone",
         noun="silicones",
-        claim_patterns=_free_from(r"silicones?", r"siliconas?", r"silikone?n?",
+        claim_tokens=_tokens(r"silicones?", r"siliconas?", r"silikone?n?",
                                     r"siliconi"),
         members=(
-            Member(r"\w*methicone\b", "a silicone"),
-            Member(r"\w*siloxane\b", "a silicone"),
+            Member(r"methicone\b", "a silicone"),
+            Member(r"siloxane\b", "a silicone"),
             Member(r"\bdimethiconol\b", "a silicone"),
-            Member(r"\w*silsesquioxane\b", "a silicone resin"),
-            Member(r"\bsiloxysilicate\b", "a silicone resin"),
+            Member(r"silsesquioxane\b", "a silicone resin"),
+            # No leading \b: the real INCI is Trimethylsiloxysilicate,
+            # where the fragment sits mid-word.
+            Member(r"siloxysilicate\b", "a silicone resin"),
+            Member(r"\bpolysilicone-\d", "a silicone"),
+            Member(r"\bsilicone\s+quaternium-\d", "a silicone"),
         ),
         excluded=(
             Excluded(
@@ -216,7 +213,7 @@ FAMILIES: tuple[Family, ...] = (
                 "silica is a mineral, not a silicone polymer.",
             ),
             Excluded(
-                r"\w*silicate\b",
+                r"(?<!siloxy)silicate\b",
                 "silicates are minerals such as Magnesium Aluminum Silicate, "
                 "not silicone polymers.",
             ),
@@ -225,10 +222,10 @@ FAMILIES: tuple[Family, ...] = (
     Family(
         key="fragrance",
         noun="fragrance",
-        claim_patterns=(
-            *_free_from(r"fragrances?", r"parfum", r"perfume", r"scent",
-                        r"fragr[aâ]ncias?", r"duftstoffe?", r"duft",
-                        r"profumo", r"geur", r"aroma"),
+        claim_tokens=_tokens(
+            r"fragrances?", r"parfum", r"perfume", r"scent",
+            r"fragr[aâ]ncias?", r"duftstoffe?", r"duft", r"profumo",
+            r"geur", r"aroma",
         ),
         members=(
             # Packs print this as "Parfum", "Parfum (Fragrance)",
@@ -301,10 +298,12 @@ FAMILIES: tuple[Family, ...] = (
     Family(
         key="alcohol",
         noun="volatile alcohol",
-        claim_patterns=_free_from(r"alcohols?", r"alcool", r"alkohol", r"alcol",
+        claim_tokens=_tokens(r"alcohols?", r"alcool", r"alkohol", r"alcol",
                                     r"alcoholes"),
         members=(
             Member(r"^alcohol$", "alcohol"),
+            Member(r"^alcohol\s*[/(]\s*(?:alcool|ethanol)\)?$",
+                   "alcohol"),
             Member(r"^alcohol\s*denat\.?$", "denatured alcohol"),
             Member(r"\bsd\s+alcohol\b", "SD alcohol"),
             Member(r"^(?:ethanol|ethyl\s+alcohol)$", "ethanol"),
@@ -347,7 +346,18 @@ FAMILIES: tuple[Family, ...] = (
                    "carmine, a pigment made from insects"),
             Member(r"\b(?:cera\s+alba|beeswax|cire\s+d'abeille)\b", "beeswax"),
             Member(r"\blanolin\b", "lanolin, from sheep's wool"),
-            Member(r"^(?:mel|honey)$", "honey"),
+            Member(r"\bmel\b|\bhoney\b", "honey"),
+            Member(r"\bgelatin\b", "gelatin"),
+            Member(r"\bcera\s+flava\b", "yellow beeswax"),
+            # Bare "milk" is not dairy. A warning sentence caught inside an
+            # ingredient panel -- "if swallowed give a glass of water or
+            # milk" -- matched it, and so did every oat, coconut and almond
+            # milk on the market. Dairy has to be named.
+            Member(r"\b(?:goat|cow|donkey|sheep|buffalo|camel|whole|"
+                   r"skimmed|dairy|jument|[aâ]nesse)\s+milk\b"
+                   r"|\bmilk\s+(?:protein|powder|fat|lipids?|solids)\b"
+                   r"|\blactis\s+proteinum\b|\bbutyrum\b",
+                   "a milk derivative"),
             Member(r"\b(?:propolis|royal\s+jelly)\b", "a bee product"),
             Member(r"\b(?:serica|silk\s+\w+|hydrolyzed\s+silk)\b", "silk"),
             Member(r"\bshellac\b", "shellac, an insect resin"),
@@ -388,6 +398,19 @@ FAMILIES: tuple[Family, ...] = (
                 "on every product.",
             ),
             Excluded(
+                r"\b(?:coconut|cocos|almond|amygdalus|oat|avena|rice|"
+                r"oryza|soy|soja|glycine|cashew|hemp|macadamia|plant|"
+                r"vegetable|nut)\b[^,]{0,24}\bmilk\b"
+                r"|\bmilk\s+thistle\b|\bsilybum\b",
+                "a plant milk or an unrelated plant whose common name "
+                "contains the word. Coconut milk is not dairy.",
+            ),
+            Excluded(
+                r"\bzea\s+mays\b|\bcorn\s?silk\b|\bmaize\b",
+                "corn. 'Zea Mays (Corn) Silk Extract' is the silk of a "
+                "maize cob, not the fibre spun by a silkworm.",
+            ),
+            Excluded(
                 r"\ballantoin\b",
                 "Allantoin used in cosmetics is synthetic or comfrey-derived, "
                 "despite an old association with animal sources.",
@@ -420,7 +443,7 @@ FAMILIES: tuple[Family, ...] = (
     Family(
         key="gluten",
         noun="gluten grains",
-        claim_patterns=_free_from(r"gluten", r"gl[uú]ten", r"glutine"),
+        claim_tokens=_tokens(r"gluten", r"gl[uú]ten", r"glutine"),
         members=(
             Member(r"^gluten$|\bwheat\s+gluten\b", "gluten itself"),
         ),
@@ -448,7 +471,7 @@ FAMILIES: tuple[Family, ...] = (
     Family(
         key="mineral-oil",
         noun="petroleum-derived oils and waxes",
-        claim_patterns=_free_from(
+        claim_tokens=_tokens(
             r"mineral\s+oils?", r"petrolatum", r"petroleum", r"paraffins?",
             r"[oó]leo\s+mineral", r"aceite\s+mineral", r"huile\s+min[ée]rale",
             r"mineral[öo]l", r"olio\s+minerale",
@@ -460,7 +483,10 @@ FAMILIES: tuple[Family, ...] = (
             Member(r"\bcera\s+microcristallina\b", "microcrystalline wax"),
             Member(r"\bmicrocrystalline\s+wax\b", "microcrystalline wax"),
             Member(r"\bozokerite\b", "ozokerite"),
-            Member(r"^paraffin$", "paraffin"),
+            Member(r"\bparaffin\b(?!um\s+liquidum)", "paraffin"),
+            Member(r"\bpetroleum\s+jelly\b", "petroleum jelly"),
+            Member(r"\bceresin\b", "ceresin"),
+            Member(r"\bisoparaffin\b", "isoparaffin"),
         ),
         disputed=(
             Member(r"\bhydrogenated\s+polyisobutene\b",
@@ -473,7 +499,7 @@ FAMILIES: tuple[Family, ...] = (
     Family(
         key="phthalate",
         noun="phthalates",
-        claim_patterns=_free_from(r"phthalates?", r"ftalatos?", r"phtalates?",
+        claim_tokens=_tokens(r"phthalates?", r"ftalatos?", r"phtalates?",
                                     r"ftalati"),
         members=(
             Member(r"\bphthalate\b", "a phthalate"),
@@ -487,17 +513,11 @@ FAMILIES: tuple[Family, ...] = (
                        "claim over an undisclosed fragrance rests on the "
                        "fragrance house's statement, not on the label.")),
         ),
-        excluded=(
-            Excluded(
-                r"\b(?:ethylhexyl\s+methoxycinnamate|isopropyl\s+myristate)\b",
-                "an ester that is not a phthalate.",
-            ),
-        ),
     ),
     Family(
         key="formaldehyde",
         noun="formaldehyde and its releasers",
-        claim_patterns=_free_from("formaldehydes?"),
+        claim_tokens=_tokens("formaldehydes?"),
         members=(
             Member(r"\bformaldehyde\b", "formaldehyde"),
             Member(r"\bformalin\b", "formalin"),
@@ -509,7 +529,8 @@ FAMILIES: tuple[Family, ...] = (
                 r"imidazolidinyl\s+urea|quaternium-15|bronopol|"
                 r"2-bromo-2-nitropropane|sodium\s+hydroxymethylglycinate|"
                 r"benzylhemiformal|methenamine|"
-                r"5-bromo-5-nitro-1,3-dioxane)\b",
+                r"5-bromo-5-nitro-1,3-dioxane|"
+                r"tris\(hydroxymethyl\)nitromethane|glyoxal)\b",
                 "a formaldehyde releaser",
                 caveat=(
                     "This preservative is not formaldehyde, but it works by "
@@ -524,10 +545,10 @@ FAMILIES: tuple[Family, ...] = (
     Family(
         key="peg",
         noun="PEGs and ethoxylates",
-        claim_patterns=_free_from("pegs?", "ethoxylates?"),
+        claim_tokens=_tokens("pegs?", "ethoxylates?"),
         members=(
-            Member(r"^peg[\s\-]?\d", "a PEG"),
-            Member(r"^ppg[\s\-]?\d", "a PPG"),
+            Member(r"\bpeg[\s\-]?\d", "a PEG"),
+            Member(r"\bppg[\s\-]?\d", "a PPG"),
             Member(r"\b[a-z]+eth[\s\-]\d+\b", "an ethoxylated ingredient"),
             Member(r"\bpolysorbate\s*\d+\b", "a polysorbate"),
             Member(r"\bpolyethylene\s+glycol\b", "polyethylene glycol"),
@@ -536,15 +557,25 @@ FAMILIES: tuple[Family, ...] = (
     Family(
         key="talc",
         noun="talc",
-        claim_patterns=_free_from(r"talc", r"talco", r"talkum"),
-        members=(Member(r"^talc$", "talc"),),
+        claim_tokens=_tokens(r"talc", r"talco", r"talkum"),
+        # "Talc (Magnesium Silicate)" is how 62 of the 2,554 corpus
+        # labels print it; an anchored pattern found none of them.
+        members=(Member(r"\btalc\b", "talc"),),
     ),
     Family(
         key="nut",
         noun="tree nuts",
-        claim_patterns=_free_from("nuts?", "tree\\s+nuts?"),
+        claim_tokens=_tokens("nuts?", "tree\\s+nuts?"),
         members=(
-            Member(r"\bprunus\s+amygdalus\b", "sweet almond"),
+            Member(r"\bprunus\s+(?:amygdalus|dulcis)\b",
+                   "sweet almond"),
+            Member(r"\bsweet\s+almond\b|\balmond\s+oil\b",
+                   "sweet almond"),
+            Member(r"\bcastanea\b", "chestnut"),
+            Member(r"\bpinus\s+pinea\b", "pine nut"),
+            Member(r"\barachis\s+hypogaea\b|\bpeanut\b",
+                   "peanut, a legume that nut-free claims are "
+                   "normally read to cover"),
             Member(r"\bcorylus\b", "hazelnut"),
             Member(r"\bjuglans\b", "walnut"),
             Member(r"\bmacadamia\b", "macadamia"),
@@ -569,8 +600,13 @@ FAMILIES: tuple[Family, ...] = (
     Family(
         key="soy",
         noun="soy",
-        claim_patterns=_free_from(r"soya?", r"soybeans?", r"soja"),
-        members=(Member(r"\bglycine\s+soja\b", "soy"),),
+        claim_tokens=_tokens(r"soya?", r"soybeans?", r"soja"),
+        members=(
+            Member(r"\bglycine\s+(?:soja|max)\b", "soy"),
+            Member(r"\bsoybean\b|\bsoja\b", "soy"),
+            Member(r"\bhydrolyzed\s+soy\b|\bsoy\s+\w*protein\b",
+                   "a soy protein"),
+        ),
         disputed=(
             Member(r"^lecithin$", "lecithin", caveat=(
                 "Unqualified lecithin is usually soy-derived. Sunflower "
@@ -584,8 +620,17 @@ FAMILIES: tuple[Family, ...] = (
     Family(
         key="dye",
         noun="added colourants",
-        claim_patterns=_free_from(
-            "dyes?", "colou?rants?", "artificial\\s+colou?rs?", "colou?rs?"
+        # "colou?rs?" on its own is deliberately absent. "No colour
+        # transfer" is a wear claim on almost every long-wear lipstick,
+        # and reading it as a colourant-free claim is a false accusation
+        # against a list that legitimately contains CI numbers.
+        # "colou?rs?" on its own is deliberately absent. "No colour
+        # transfer" is a wear claim on almost every long-wear lipstick,
+        # and reading it as a colourant-free claim is a false accusation
+        # against a list that legitimately contains CI numbers.
+        claim_tokens=_tokens(
+            r"dyes?", r"colou?rants?", r"colorantes?", r"farbstoffe?",
+            r"(?:artificial|added|synthetic)\s+colou?rs?",
         ),
         members=(
             Member(r"\bci\s*\d{5}\b", "a colour index pigment"),

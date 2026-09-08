@@ -187,7 +187,7 @@ def render_markdown(report: LabelReport) -> str:
         for finding in items:
             out.append(f"**“{finding.claim.text}”**")
             out.append("")
-            if finding.explanation and verdict != "no-conflict":
+            if finding.explanation:
                 out.append(finding.explanation)
                 out.append("")
             for match in finding.matches:

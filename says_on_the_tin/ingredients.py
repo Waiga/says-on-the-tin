@@ -37,6 +37,15 @@ _TERMINATOR = re.compile(
     r")\b"
 )
 
+# The same panels, when they run on inline rather than starting a line. A
+# poison-control warning parsed as ingredients produced tokens that matched
+# real family patterns.
+_INLINE_TERMINATOR = re.compile(
+    r"(?i)\b(?:if\s+swallowed|if\s+in\s+eyes|avoid\s+contact\s+with\s+"
+    r"(?:the\s+)?eyes|call\s+a?\s*poison|seek\s+medical|discontinue\s+use|"
+    r"keep\s+out\s+of\s+reach|for\s+external\s+use\s+only)\b"
+)
+
 # The colourant block. Anything after this marker may or may not be in the
 # specific unit in your hand, because one list is printed across a whole shade
 # range.
@@ -133,6 +142,9 @@ def extract(text: str) -> tuple[str, str, bool]:
     rest = text[match.end() :]
 
     end = _TERMINATOR.search(rest)
+    inline = _INLINE_TERMINATOR.search(rest)
+    if inline is not None and (end is None or inline.start() < end.start()):
+        end = inline
     if end is not None:
         block, after = rest[: end.start()], rest[end.start() :]
     else:
@@ -210,6 +222,24 @@ def parse(block: str) -> list[Ingredient]:
                         )
                     )
     return out
+
+
+def looks_binary(text: str) -> bool:
+    """Whether a block is bytes rather than a printed ingredient list.
+
+    A binary file appended after an "Ingredients:" heading used to parse into
+    junk tokens, match nothing, and be reported as no contradiction found --
+    the most reassuring thing this tool can say, about a file it never read.
+    """
+    sample = text[:4000]
+    if not sample:
+        return False
+    if "\x00" in sample:
+        return True
+    printable = sum(
+        1 for ch in sample if ch.isprintable() or ch in "\t\n\r"
+    )
+    return printable / len(sample) < 0.85
 
 
 def looks_like_a_list(text: str) -> bool:

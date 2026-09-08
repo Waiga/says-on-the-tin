@@ -73,8 +73,20 @@ def check_label(
     else:
         block, marketing, parsed = ingredients_mod.extract(text)
 
+    if parsed and ingredients_mod.looks_binary(block):
+        parsed = False
+        limits.append(
+            "What followed the ingredient heading is not readable text. "
+            "Nothing was checked against it."
+        )
+
+    # Claim text printed inside the panel is a claim, not an ingredient.
+    # It is found as a claim below, and blanked out here so the same words
+    # cannot also be matched as the thing they promise is absent.
     ing: list[Ingredient] = (
-        ingredients_mod.parse(block) if parsed else []
+        ingredients_mod.parse(claims_mod.strip_claim_text(block))
+        if parsed
+        else []
     )
     if parsed and not ing:
         parsed = False
@@ -91,7 +103,23 @@ def check_label(
             "'Ingredients:' heading in the text."
         )
 
+    # A claim is a claim wherever it is printed: brands routinely close the
+    # ingredient panel with "SANS PARABEN", and scanning only the marketing
+    # half reported such a pack as making no claims at all.
+    #
+    # The two halves are scanned SEPARATELY rather than concatenated. A
+    # negation reaches forward over a coordinated list, and across a join it
+    # reached out of the marketing copy and into the ingredient list -- so
+    # "Shampooing sans silicone" reported Ammonium Lauryl Sulfate as a broken
+    # silicone claim. Inside the panel a comma separates items rather than
+    # joining a list, which is what `inside_ingredient_panel` changes.
     found_claims = claims_mod.find(marketing)
+    seen_families = {c.family for c in found_claims}
+    for claim in claims_mod.find(block, inside_ingredient_panel=True):
+        if claim.family not in seen_families:
+            found_claims.append(claim)
+            seen_families.add(claim.family)
+    found_claims.sort(key=lambda c: (c.offset, c.family))
     findings: list[Finding] = []
     exclusions: list[Exclusion] = []
 

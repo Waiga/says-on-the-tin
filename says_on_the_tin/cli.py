@@ -11,7 +11,10 @@ from says_on_the_tin.check import check_label
 
 # 0  nothing contradicted
 # 1  at least one contradiction between a claim and the ingredient list
-# 2  the tool could not run: unreadable input, or nothing to check
+# 2  the check could not be carried out: unreadable input, or claims were
+#    found with no ingredient list to check them against. Exiting 0 there
+#    would let a CI job go green over a label nothing was compared to,
+#    which is the one thing this tool exists not to do.
 EXIT_OK = 0
 EXIT_CONFLICT = 1
 EXIT_ERROR = 2
@@ -131,4 +134,8 @@ def main(argv: list[str] | None = None) -> int:
     )
     sys.stdout.buffer.write(b"\n")
 
-    return EXIT_CONFLICT if result.conflicts else EXIT_OK
+    if result.conflicts:
+        return EXIT_CONFLICT
+    if any(f.verdict == "not-checked" for f in result.findings):
+        return EXIT_ERROR
+    return EXIT_OK

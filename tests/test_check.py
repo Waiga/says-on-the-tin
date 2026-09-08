@@ -98,6 +98,58 @@ class Exclusions(unittest.TestCase):
         self.assertEqual(r.exclusions, [])
 
 
+class ClaimTextInsideThePanel(unittest.TestCase):
+    """Brands print claims inside the ingredient panel. Those words are a
+    claim, and must not also be read as the ingredients they promise are
+    absent."""
+
+    def test_a_claim_in_the_panel_is_found(self):
+        r = check_label(
+            "Shampooing doux.\n"
+            "Ingredients: Aqua, Sodium Laureth Sulfate, Methylparaben. "
+            "Sans paraben."
+        )
+        self.assertEqual(verdicts(r)["paraben"], "conflict")
+
+    def test_the_things_a_panel_claim_names_are_not_ingredients(self):
+        # "Formulated without mineral oil, paraffin, petrolatum" names three
+        # things the product does NOT contain. Parsing them as ingredients
+        # made the label contradict itself with its own promise.
+        r = check_label(
+            "Rich Cream.\nIngredients: Aqua, Glycerin. "
+            "Formulated without mineral oil, paraffin, petrolatum."
+        )
+        self.assertEqual(r.conflicts, [])
+
+    def test_a_marketing_claim_cannot_reach_into_the_ingredient_list(self):
+        # "sans silicone" followed by the panel once reported Ammonium
+        # Lauryl Sulfate as a broken silicone claim, because the negation
+        # scanned across the join into the list.
+        r = check_label(
+            "Shampooing hydratation sans silicone\n"
+            "Ingredients: Aqua, Ammonium Lauryl Sulfate, Glycerin"
+        )
+        self.assertEqual(r.conflicts, [])
+        self.assertEqual(verdicts(r)["silicone"], "no-conflict")
+
+    def test_safety_prose_in_the_panel_is_not_ingredients(self):
+        r = check_label(
+            "Vegan.\nIngredients: Aqua, Glycerin. If swallowed give a "
+            "glass of water or milk and call a poison control centre."
+        )
+        self.assertEqual(r.conflicts, [])
+
+
+class BinaryInput(unittest.TestCase):
+    def test_bytes_after_the_heading_are_not_a_checked_list(self):
+        r = check_label("Paraben free.\nIngredients: " + "\x00\xff" * 500)
+        self.assertFalse(r.ingredients_parsed)
+        self.assertEqual(r.conflicts, [])
+        self.assertTrue(
+            any("not readable text" in limit for limit in r.limits), r.limits
+        )
+
+
 class SeparateInputs(unittest.TestCase):
     def test_the_two_halves_can_be_passed_separately(self):
         r = check_label(

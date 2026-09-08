@@ -113,12 +113,20 @@ class RealWorldRegressions(unittest.TestCase):
                 self.assertEqual(kind("vegan", name), "disputed")
 
     def test_cornsilk_is_not_silk(self):
-        # "Zea Mays Silk (Cornsilk) Extract" is a plant. An independent pass
-        # over the same corpus reported it as an animal product under a
-        # vegan claim; it is maize.
-        self.assertIsNone(
-            kind("vegan", "zea mays silk (cornsilk) extract")
-        )
+        # An independent pass over the same corpus called this an animal
+        # product under a vegan claim. It is maize.
+        #
+        # The earlier version of this test used "(Cornsilk)" as one word,
+        # where a bracket happened to block the silk pattern, so it passed
+        # while the real INCI form -- "Zea Mays (Corn) Silk Extract" -- was
+        # still reported as a contradiction. Both forms are checked now, and
+        # the tool reports them as considered-and-not-counted rather than
+        # silently ignoring them.
+        for name in ("zea mays silk (cornsilk) extract",
+                     "zea mays (corn) silk extract",
+                     "corn silk extract"):
+            with self.subTest(name=name):
+                self.assertEqual(kind("vegan", name), "excluded")
 
     def test_sodium_caseinate_is_milk_derived(self):
         # A word-boundary pattern on "casein" missed the "-ate" form, which
@@ -154,6 +162,70 @@ class RealWorldRegressions(unittest.TestCase):
         self.assertEqual(kind("alcohol", "phenethyl alcohol"), None)
 
 
+class ReviewFindings(unittest.TestCase):
+    """Raised by an independent adversarial review before publication."""
+
+    def test_a_silicone_resin_is_not_shadowed_by_the_silicate_exclusion(self):
+        # Exclusions are tested first, so "\w*silicate" swallowed
+        # Trimethylsiloxysilicate -- a real silicone -- in 39 of the 2,554
+        # corpus labels.
+        self.assertEqual(kind("silicone", "trimethylsiloxysilicate"),
+                         "member")
+        self.assertEqual(kind("silicone", "polysilicone-11"), "member")
+        self.assertEqual(kind("silicone", "silicone quaternium-16"),
+                         "member")
+        # and the exclusion still works on actual minerals
+        self.assertEqual(kind("silicone", "magnesium aluminum silicate"),
+                         "excluded")
+
+    def test_family_gaps_the_review_found(self):
+        for family, name in [
+            ("soy", "glycine max"), ("soy", "soybean oil"),
+            ("soy", "hydrolyzed soy protein"),
+            ("nut", "prunus dulcis oil"), ("nut", "sweet almond oil"),
+            ("nut", "castanea sativa seed extract"),
+            ("mineral-oil", "paraffin wax"),
+            ("mineral-oil", "petroleum jelly"),
+            ("mineral-oil", "ceresin"),
+            ("vegan", "gelatin"), ("vegan", "goat milk"),
+            ("vegan", "honey extract"), ("vegan", "cera flava"),
+            ("peg", "bis-peg-18 methyl ether dimethyl silane"),
+            ("peg", "sodium peg-7 olive oil carboxylate"),
+            ("sulfate", "sodium lauryl ether sulfate"),
+            ("sulfate", "sodium dodecyl sulfate"),
+            ("talc", "talc (magnesium silicate)"),
+            ("alcohol", "alcohol (ethanol)"),
+            ("paraben", "methyl 4-hydroxybenzoate"),
+            ("formaldehyde", "tris(hydroxymethyl)nitromethane"),
+            ("formaldehyde", "glyoxal"),
+        ]:
+            with self.subTest(family=family, name=name):
+                self.assertIn(kind(family, name), ("member", "disputed"))
+
+    def test_plant_milks_are_not_dairy(self):
+        for name in ("avena sativa (oat) milk",
+                     "cocos nucifera (coconut) milk protein",
+                     "almond milk", "soy milk"):
+            with self.subTest(name=name):
+                self.assertEqual(kind("vegan", name), "excluded")
+
+    def test_dairy_still_is(self):
+        for name in ("hydrolyzed milk protein", "goat milk",
+                     "sodium caseinate", "lactose"):
+            with self.subTest(name=name):
+                self.assertEqual(kind("vegan", name), "member")
+
+    def test_bare_milk_in_a_sentence_is_not_an_ingredient_match(self):
+        # From a real panel: "if swallowed give a glass of water or milk".
+        self.assertIsNone(
+            kind("vegan", "if swallowed give glass of water or milk and call")
+        )
+
+    def test_paraffinum_liquidum_is_still_matched_once(self):
+        self.assertEqual(kind("mineral-oil", "paraffinum liquidum"),
+                         "member")
+
+
 class Disputed(unittest.TestCase):
     def test_squalane_is_a_review_not_a_conflict(self):
         self.assertEqual(kind("vegan", "squalane"), "disputed")
@@ -175,6 +247,62 @@ class Disputed(unittest.TestCase):
         # An unscented product may carry a masking fragrance.
         self.assertEqual(kind("unscented", "parfum"), "disputed")
         self.assertEqual(kind("fragrance", "parfum"), "member")
+
+
+class CoordinatedClaims(unittest.TestCase):
+    """One negation routinely governs a list of nouns. Binding it to a single
+    noun found only one claim per sentence, so a label with four
+    contradictions reported two -- which reads as a pass on the other two."""
+
+    def test_a_negation_governs_the_whole_list_after_it(self):
+        from says_on_the_tin.claims import find
+        found = {c.family for c in
+                 find("Free from parabens, sulphates and silicones.")}
+        self.assertEqual(found, {"paraben", "sulfate", "silicone"})
+
+    def test_a_colon_does_not_break_a_free_from_panel(self):
+        # "FREE FROM:" bullet panels are ubiquitous on packs.
+        from says_on_the_tin.claims import find
+        found = {c.family for c in
+                 find("Free from: Parabens, Sulfates, Silicones")}
+        self.assertEqual(found, {"paraben", "sulfate", "silicone"})
+
+    def test_a_trailing_free_governs_the_list_before_it(self):
+        from says_on_the_tin.claims import find
+        found = {c.family for c in find("Paraben & sulfate free")}
+        self.assertEqual(found, {"paraben", "sulfate"})
+
+    def test_a_negation_does_not_reach_past_a_sentence(self):
+        from says_on_the_tin.claims import find
+        found = {c.family for c in find("Contains silicone. Paraben free.")}
+        self.assertEqual(found, {"paraben"})
+
+    def test_an_unrelated_no_is_not_a_claim(self):
+        from says_on_the_tin.claims import find
+        self.assertEqual(find("No more frizz. Nourishes with shea."), [])
+
+    def test_no_colour_transfer_is_not_a_colourant_claim(self):
+        # A wear claim on nearly every long-wear lipstick. Reading it as
+        # dye-free is a false accusation against a legitimate CI list.
+        from says_on_the_tin.claims import find
+        self.assertEqual(
+            find("Matte Lipstick. No colour transfer, 12 hour wear."), []
+        )
+
+    def test_no_artificial_colours_is_still_a_colourant_claim(self):
+        from says_on_the_tin.claims import find
+        found = {c.family for c in find("No artificial colours added.")}
+        self.assertEqual(found, {"dye"})
+
+    def test_a_qualifier_before_the_noun_narrows_the_claim(self):
+        from says_on_the_tin.claims import find
+        self.assertEqual(find("No synthetic fragrance"), [])
+        self.assertEqual(find("ohne rein synthetische Duftstoffe"), [])
+
+    def test_but_no_added_fragrance_is_absolute(self):
+        from says_on_the_tin.claims import find
+        found = {c.family for c in find("No added fragrance")}
+        self.assertEqual(found, {"fragrance"})
 
 
 class MultilingualClaims(unittest.TestCase):
@@ -218,7 +346,9 @@ class Structure(unittest.TestCase):
         for family in FAMILIES:
             with self.subTest(family=family.key):
                 self.assertTrue(family.members or family.disputed)
-                self.assertTrue(family.claim_patterns)
+                # A family is claimable either through nouns a negation can
+                # attach to, or through a standalone pattern like "vegan".
+                self.assertTrue(family.claim_tokens or family.claim_patterns)
                 self.assertTrue(family.noun)
 
     def test_every_disputed_entry_explains_itself(self):
