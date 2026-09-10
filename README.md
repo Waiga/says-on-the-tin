@@ -6,6 +6,10 @@ front, and an ingredient on the back that breaks it.
 Runs entirely on your machine. No account, no upload, no network access, no
 dependencies beyond Python itself.
 
+What it found across 2,554 real published labels, and the caveat that matters
+more than the finding, is written up in
+[An ingredient list cannot tell you most of what you want to know](https://medium.com/@aryawaiga0/an-ingredient-list-cannot-tell-you-most-of-what-you-want-to-know-f3807f357837).
+
 ```
 $ says-on-the-tin shampoo-label.txt
 
