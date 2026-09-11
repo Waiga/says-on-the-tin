@@ -44,10 +44,11 @@ That is not modesty. It is the only claim the evidence supports.
 ## Install
 
 ```
-pip install .
+pip install says-on-the-tin
 ```
 
-Python 3.11 or newer. Nothing else.
+Python 3.11 or newer. Nothing else. To install from a clone instead, `pip install .`
+from the repository root.
 
 ## Use
 
