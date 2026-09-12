@@ -13,7 +13,7 @@ more than the finding, is written up in
 ```
 $ says-on-the-tin shampoo-label.txt
 
-says-on-the-tin 0.1.0 — shampoo-label.txt
+says-on-the-tin 0.1.1 — shampoo-label.txt
 
 3 contradictions, 1 to review, 2 claims no ingredient list can settle.
 
