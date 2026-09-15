@@ -13,7 +13,7 @@ more than the finding, is written up in
 ```
 $ says-on-the-tin shampoo-label.txt
 
-says-on-the-tin 0.1.1 — shampoo-label.txt
+says-on-the-tin 0.1.2 — shampoo-label.txt
 
 3 contradictions, 1 to review, 2 claims no ingredient list can settle.
 
@@ -70,7 +70,7 @@ could not run. So it works as a check in CI over your label copy.
 |---|---|
 | **conflict** | The claim is made and the ingredient list contains something the tool recognises as breaking it. |
 | **review** | Something was found whose status is genuinely contested, conditional, or depends on sourcing the label does not state. A person has to settle it. |
-| **no-conflict** | The claim is made and nothing matched. Read that as *nothing matched among the ingredients parsed and known to this tool* — never as the claim being true. |
+| **no-conflict** | The claim is made and nothing matched. Read that as *nothing matched among the ingredients parsed and known to this tool*, never as the claim being true. |
 | **unverifiable** | The claim cannot be settled from an ingredient list at all. "Cruelty-free" is about testing policy. "Dermatologically tested" is about a study. |
 | **not-checked** | The claim was found but there was no ingredient list to check it against. This is deliberately not the same as no-conflict. |
 
@@ -110,7 +110,7 @@ has already answered the question.
 
 Unit tests pass on the inputs their author imagined. That proves very little,
 so this was run over **2,554 real published cosmetic labels** taken from a
-public Open Beauty Facts export — real packs, real messiness, none of it
+public Open Beauty Facts export: real packs, real messiness, none of it
 written by this project.
 
 | | |
@@ -125,7 +125,7 @@ written by this project.
 | Known false-positive cases wrongly flagged | **0 of 14** |
 
 Those 14 are cases an earlier, independent pass over the same corpus had
-itself identified as things that must *not* be called contradictions — Epsom
+itself identified as things that must *not* be called contradictions: Epsom
 salt under sulfate-free, fatty alcohols and benzyl alcohol under
 alcohol-free. None is reported as a contradiction here.
 
@@ -133,12 +133,12 @@ alcohol-free. None is reported as a contradiction here.
 record in the corpus was selected for having an ingredient list of at least
 50 characters, so a parse rate of 2,554 out of 2,554 is guaranteed by the
 selection and is not an achievement of the extractor. And the claims in that
-run came from the database's own label tags — `without-paraben`, `no-gluten`
-— which are tidier than anything printed on a pack.
+run came from the database's own label tags (`without-paraben`, `no-gluten`),
+which are tidier than anything printed on a pack.
 
 So there is a second measurement arm, over the one field in that corpus a
 brand actually wrote: the product name. It found **76 claims in 71 real
-product names** and **0 contradictions** — those brands' names and lists
+product names** and **0 contradictions**. Those brands' names and lists
 agree. That arm exists because an adversarial review pointed out that three
 real defects had survived precisely because claim detection had never met
 prose, and it earned its place immediately: it caught a bug that reported
@@ -156,24 +156,24 @@ an independent reviewer attacking the code:
   `Parabenfrei`.
 - **One negation governs a whole list.** "Free from parabens, sulphates and
   silicones" is three claims. Binding the negation to a single noun found
-  one of them, and reported a label with three contradictions as having one
-   — which reads as a clean bill of health on the other two. `FREE FROM:`
+  one of them, and reported a label with three contradictions as having one,
+   which reads as a clean bill of health on the other two. `FREE FROM:`
   bullet panels found nothing at all, because of the colon.
 - **`Parfum (Fragrance)` is the most common printed form** of the fragrance
-  entry, and an exact-match pattern missed all of it — 20 real
+  entry, and an exact-match pattern missed all of it: 20 real
   contradictions.
 - **Glycerin and stearic acid buried everything.** Both are
   sourcing-ambiguous under a vegan claim, and flagging them produced 524 of
   538 review findings. Technically defensible, practically useless.
 - **Wheat derivatives under a gluten-free claim are contested**, not
   clear-cut. Hydrolysed wheat protein is not gluten. They are reviews now.
-- **Brands print the claim inside the ingredient panel** — `SANS PARABEN`
+- **Brands print the claim inside the ingredient panel**: `SANS PARABEN`
   closing a French list, or `Formulated without mineral oil, paraffin,
   petrolatum`. Read as ingredients, those words made labels contradict
   themselves with their own promises.
 - **"No colour transfer"** on a long-wear lipstick was read as a
-  colourant-free claim, and **"ohne rein synthetische Duftstoffe"** — no
-  *purely synthetic* fragrance — as an absolute one.
+  colourant-free claim, and **"ohne rein synthetische Duftstoffe"** (no
+  *purely synthetic* fragrance) as an absolute one.
 - **Bare `milk` is not dairy.** It matched oat milk, coconut milk, and a
   poison-control warning caught inside a panel.
 - **`Zea Mays (Corn) Silk Extract` was called silk.** The README named
@@ -184,7 +184,7 @@ an independent reviewer attacking the code:
 - **`\w*paraben` backtracked quadratically.** One label with a 40,000-
   character unbroken run took 20.8 seconds; it now takes 0.07.
 - **A binary file after `Ingredients:`** was parsed as a list and reported as
-  no contradiction found — the most reassuring thing this tool can say, about
+  no contradiction found, the most reassuring thing this tool can say, about
   a file it never read.
 - **Exit code 0 when nothing was checked.** A CI job over a label whose list
   did not parse went green. It now exits 2.
