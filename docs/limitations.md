@@ -36,8 +36,9 @@ in the closing section.
 
 ## Where a false negative can come from
 
-A false negative — the tool says nothing and the label really does contradict
-itself — is the failure that matters, because it can be read as reassurance.
+A false negative, where the tool says nothing and the label really does
+contradict itself, is the failure that matters, because it can be read as
+reassurance.
 The known routes:
 
 1. **An ingredient name the family patterns do not cover.** The families are
@@ -48,7 +49,7 @@ The known routes:
    Anything else is missed silently.
 3. **An ingredient list the extractor could not find.** Without an
    `Ingredients:`-style heading in one of the languages it knows, the text is
-   treated as marketing copy and nothing is checked — but this case is
+   treated as marketing copy and nothing is checked. This case is
    reported as `not-checked`, not as a pass.
 4. **A truncated list.** If a pack panel is cut off mid-list, the tool checks
    what it was given and has no way to know the rest existed.
@@ -94,6 +95,6 @@ public chemistry and published industry convention, in `families.py`, with
 the reasoning next to each entry so it can be argued with.
 
 The 2,554-label corpus used for measurement is an Open Beauty Facts export.
-That database is ODbL 1.0 — attribution and share-alike — which is
+That database is ODbL 1.0, attribution and share-alike, which is
 incompatible with redistributing a filtered subset inside an MIT repository.
 The corpus is therefore not included here; only the measurements are.
