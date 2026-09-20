@@ -46,7 +46,7 @@ def build_parser() -> argparse.ArgumentParser:
         "label",
         nargs="?",
         help=(
-            "File containing the label text, or - for standard input. The "
+            "File containing the label text, or '-' for standard input. The "
             "file may hold the marketing copy and the ingredient list "
             "together, as copied from a product page."
         ),
@@ -54,12 +54,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--ingredients",
         metavar="FILE",
-        help="File holding only the ingredient list, or - for stdin.",
+        help="File holding only the ingredient list, or '-' for stdin.",
     )
     parser.add_argument(
         "--claims",
         metavar="FILE",
-        help="File holding only the marketing copy, or - for stdin.",
+        help="File holding only the marketing copy, or '-' for stdin.",
     )
     parser.add_argument(
         "--format",
@@ -96,7 +96,7 @@ def main(argv: list[str] | None = None) -> int:
         )
     if not args.label and not (args.ingredients or args.claims):
         parser.error(
-            "nothing to check: pass a label file, - for standard input, or "
+            "nothing to check: pass a label file, '-' for standard input, or "
             "--ingredients/--claims"
         )
     if [args.label, args.ingredients, args.claims].count("-") > 1:

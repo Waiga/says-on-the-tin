@@ -42,7 +42,7 @@ def _describe_review(noun: str, matches: list[Match]) -> str:
     names = ", ".join(sorted({m.ingredient.raw for m in matches}))
     return (
         f"The claim about {noun} cannot be settled from the label alone. "
-        f"{names} — each is explained below."
+        f"{names}: each is explained below."
     )
 
 
