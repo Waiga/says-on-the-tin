@@ -394,7 +394,7 @@ FAMILIES: tuple[Family, ...] = (
                 "labels, flagging these two produced 524 of 538 review "
                 "findings and buried everything worth reading. If your "
                 "vegan claim is audited, the supplier declaration for these "
-                "is worth holding -- but a checker cannot usefully say so "
+                "is worth holding, but a checker cannot usefully say so "
                 "on every product.",
             ),
             Excluded(

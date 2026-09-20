@@ -32,7 +32,7 @@ def _where(finding: Finding, total: int) -> list[str]:
             if item.position == "may-contain"
             else f"{_ordinal(item.index)} of {total} in the list"
         )
-        lines.append(f"      {item.raw} — {match.member}, {place}")
+        lines.append(f"      {item.raw}: {match.member}, {place}")
         if match.caveat:
             lines.extend(_wrap(match.caveat, "        "))
     return lines
@@ -97,7 +97,7 @@ def render_text(report: LabelReport) -> str:
     total = sum(1 for i in report.ingredients if i.position == "declared")
     out: list[str] = []
     title = report.source or "label"
-    out.append(f"says-on-the-tin {__version__} — {title}")
+    out.append(f"says-on-the-tin {__version__}: {title}")
     out.append("")
     out.extend(_wrap(_headline(report), ""))
     out.append("")
@@ -197,7 +197,7 @@ def render_markdown(report: LabelReport) -> str:
                     if item.position == "may-contain"
                     else f"{_ordinal(item.index)} of {total}"
                 )
-                out.append(f"- `{item.raw}` — {match.member}, {place}")
+                out.append(f"- `{item.raw}`: {match.member}, {place}")
                 if match.caveat:
                     out.append(f"  - {match.caveat}")
             out.append("")
@@ -205,7 +205,7 @@ def render_markdown(report: LabelReport) -> str:
         out.append("## Considered and not counted")
         out.append("")
         for exclusion in report.exclusions:
-            out.append(f"- `{exclusion.ingredient.raw}` — {exclusion.reason}")
+            out.append(f"- `{exclusion.ingredient.raw}`: {exclusion.reason}")
         out.append("")
     out.append("## What this did not check")
     out.append("")
@@ -272,7 +272,7 @@ def render_families() -> str:
         "",
     ]
     for family in FAMILIES:
-        out.append(f"{family.key} — {family.noun}")
+        out.append(f"{family.key}: {family.noun}")
         out.append(f"  breaks the claim: {len(family.members)} pattern(s)")
         if family.disputed:
             out.append(f"  needs review:     {len(family.disputed)} pattern(s)")

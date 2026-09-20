@@ -13,23 +13,34 @@ more than the finding, is written up in
 ```
 $ says-on-the-tin shampoo-label.txt
 
-says-on-the-tin 0.1.2 — shampoo-label.txt
+says-on-the-tin 0.1.3: shampoo-label.txt
 
 3 contradictions, 1 to review, 2 claims no ingredient list can settle.
 
 CONTRADICTIONS
   The label makes these claims, and its own ingredient list breaks them.
 
-  "SULFATE FREE"
-    The label claims no cleansing sulfates, and its own ingredient list
-    contains Sodium Laureth Sulfate.
-      Sodium Laureth Sulfate — a sulfate surfactant, 2nd of 12 in the list
-
   "paraben-free"
     The label claims no parabens, and its own ingredient list contains
     Methylparaben.
-      Methylparaben — a paraben, 9th of 12 in the list
+      Methylparaben: a paraben, 9th of 12 in the list
+
+  "silicone free"
+    The label claims no silicones, and its own ingredient list contains
+    Dimethicone.
+      Dimethicone: a silicone, 5th of 12 in the list
+
+  "SULFATE"
+    The label claims no cleansing sulfates, and its own ingredient list
+    contains Sodium Laureth Sulfate.
+      Sodium Laureth Sulfate: a sulfate surfactant, 2nd of 12 in the list
 ```
+
+That is the first section. The run goes on to print `WORTH A LOOK`,
+`CANNOT BE CHECKED FROM AN INGREDIENT LIST`, `CONSIDERED AND NOT COUNTED`
+and `WHAT THIS DID NOT CHECK`. It read
+[`examples/shampoo-label.txt`](examples/shampoo-label.txt), so the whole
+output can be reproduced.
 
 ## What it does not do
 
@@ -80,23 +91,50 @@ A checker that flags Cetearyl Alcohol under an "alcohol-free" claim is wrong,
 and one wrong flag is enough for a formulator to close it and never open it
 again. So the tool carries an explicit list of look-alikes, each with the
 reason, and it **reports what it deliberately did not count** rather than
-dropping it silently:
+dropping it silently. Nothing is contradicted on this label, and it still
+says out loud what it set aside:
 
 ```
+$ says-on-the-tin body-wash-label.txt
+
+says-on-the-tin 0.1.3: body-wash-label.txt
+
+No contradiction found between the claims on this label and its own
+ingredient list.
+
+NOTHING MATCHED
+  Nothing this tool recognises turned up against these claims. Read that as
+  what it says, not as confirmation the claim is true.
+
+  "alcohol free"
+
+  "Sulfate"
+
 CONSIDERED AND NOT COUNTED
   These ingredients look like they break a claim above and do not. They are
   listed so you can see the tool noticed them.
 
-  Magnesium Sulfate
-    an inorganic or polysaccharide sulfate salt, not a cleansing surfactant.
-    'Sulfate-free' is a claim about detergents such as SLS and SLES;
-    Magnesium Sulfate is Epsom salt.
   Cetearyl Alcohol
     a fatty alcohol. These are waxy emollients and thickeners that soften
     skin; they are the opposite of the drying, volatile alcohol an
     alcohol-free claim is about. This is the most common false alarm in
     ingredient checking.
+  Magnesium Sulfate
+    an inorganic or polysaccharide sulfate salt, not a cleansing surfactant.
+    'Sulfate-free' is a claim about detergents such as SLS and SLES;
+    Magnesium Sulfate is Epsom salt.
+
+WHAT THIS DID NOT CHECK
+  - Only the 16 claim families this tool knows about were compared, against
+    ingredient names it recognises. An ingredient it has never heard of
+    cannot break a claim it cannot see.
+  - Nothing here is a statement about whether this product is legal to sell,
+    safe, or acceptable to any particular retailer. This tool compares two
+    halves of one document and reports where they disagree.
 ```
+
+That is a complete run over
+[`examples/body-wash-label.txt`](examples/body-wash-label.txt).
 
 Silence about a near-miss reads as an oversight. Saying it out loud is what
 makes the absence of a finding worth anything.
