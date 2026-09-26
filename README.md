@@ -262,3 +262,8 @@ than none.
 MIT. See `LICENSE`.
 
 Nothing in this repository is legal or regulatory advice.
+
+## Elsewhere
+
+The rest of these tools, and the writing about what real files did to them, is at
+[waiga.github.io](https://waiga.github.io).
